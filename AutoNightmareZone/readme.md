@@ -1,0 +1,21 @@
+How to setup:
+
+- Toggle
+  - Your start/stop hotkey
+- Strategy
+  - Prayer: will use prayer to protect
+  - Absorption: will use absorption potions to protect
+- Prayer Flick mode
+  - Off: will not flick prayers (Prayers will be kept on the entire time when using the Prayer strategy and off when using the Absorption strategy)
+  - Quick Prayer: Will use the quick prayer minimap orb to flick prayers
+  - Custom: Will flick whatever prayers are listed below manually.
+- Health reduction item
+  - Item used to lower the player's health when using the absorption strategy
+- Use prayer potions - self explanitory
+- Use overload potions - self explanitory
+- Tick Delays
+  - Set min/max delays to speed up or slow down the plugin
+- Absorption Offset
+  - The highest number of absorptions at which the script will decide to drink more.
+- Prayer offset
+  - Adds a random offset to drinking the player potion
