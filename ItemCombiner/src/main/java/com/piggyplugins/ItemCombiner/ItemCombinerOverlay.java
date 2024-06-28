@@ -3,6 +3,7 @@ package com.piggyplugins.ItemCombiner;
 import com.google.inject.Inject;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
 import java.awt.*;
@@ -29,7 +30,14 @@ public class ItemCombinerOverlay extends OverlayPanel {
                 .text(plugin.isStarted() ? "Running" : "Paused")
                 .color(plugin.isStarted() ? Color.GREEN : Color.RED)
                 .build());
+
+        if (plugin.isStarted()) {
+            panelComponent.getChildren().add(LineComponent.builder()
+                    .left("Tick Delay:")
+                    .right(String.valueOf(plugin.getDelayTicks()))
+                    .build());
+        }
+
         return super.render(graphics);
     }
-
 }

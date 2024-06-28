@@ -64,4 +64,24 @@ public interface ItemCombinerConfig extends Config {
     default int itemTwoAmt() {
         return 14;
     }
+
+    @ConfigItem(
+            keyName = "minTickDelay",
+            name = "Minimum Tick Delay",
+            description = "Minimum delay between actions in ticks",
+            position = 5
+    )
+    default int minTickDelay() {
+        return 1;
+    }
+
+    @ConfigItem(
+            keyName = "maxTickDelay",
+            name = "Maximum Tick Delay",
+            description = "Maximum delay between actions in ticks",
+            position = 6
+    )
+    default int maxTickDelay() {
+        return 3;
+    }
 }
