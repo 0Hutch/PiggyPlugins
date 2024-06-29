@@ -129,21 +129,25 @@ public class PouchManager {
         }
         return false;
     }
-
+    
     public void fillPouches() {
         int essenceAmount = Inventory.getItemAmount(ItemID.GUARDIAN_ESSENCE);
         List<Pouch> result = getEmptyPouches();
+
         for (Pouch pouch : result) {
             Optional<Widget> emptyPouch = Inventory.search().withId(pouch.getPouchID()).first();
             if (emptyPouch.isPresent()) {
                 Widget p = emptyPouch.get();
                 InventoryInteraction.useItem(p, "Fill");
                 int essenceWithdrawn = pouch.getEssenceTotal() - pouch.getCurrentEssence();
-                if (essenceAmount - essenceWithdrawn > 0) {
+                if (essenceAmount - essenceWithdrawn >= 0) {
                     essenceAmount -= essenceWithdrawn;
                     pouch.setCurrentEssence(pouch.getEssenceTotal());
                 } else {
-                    pouch.setCurrentEssence(essenceAmount);
+                    pouch.setCurrentEssence(pouch.getCurrentEssence() + essenceAmount);
+                    essenceAmount = 0;
+                }
+                if (essenceAmount == 0) {
                     break;
                 }
             }
