@@ -45,3 +45,6 @@ include 'BetterProfiles'
 include 'CluePuzzleSolver'
 include 'LeftClickBlackJack'
 
+include 'AutoThiever'
+include 'AutoChop'
+include 'AutoCombat'

@@ -1,0 +1,16 @@
+package com.ozplugins.K1Tick;
+
+public enum K1TickState
+{
+	TIMEOUT,
+	GET_MISSING_REQUIRED_ITEMS,
+	FIND_BANK,
+	COOK,
+	DEPOSIT_FISH,
+	WITHDRAW_FISH,
+	ANIMATING,
+	UNHANDLED_STATE,
+	BANK_PIN,
+	MOVING,
+	IDLE;
+}
