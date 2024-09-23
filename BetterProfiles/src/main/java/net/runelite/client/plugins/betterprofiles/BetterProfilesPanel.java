@@ -24,14 +24,26 @@
  */
 package net.runelite.client.plugins.betterprofiles;
 
-import java.awt.BorderLayout;
-import java.awt.Font;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.DynamicGridLayout;
+import net.runelite.client.ui.FontManager;
+import net.runelite.client.ui.PluginPanel;
+
+import javax.annotation.Nullable;
+import javax.crypto.*;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import javax.inject.Inject;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
+import javax.swing.text.PlainDocument;
+import java.awt.*;
+import java.awt.event.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -39,36 +51,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.Arrays;
 import java.util.Base64;
-import javax.annotation.Nullable;
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.inject.Inject;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
-import javax.swing.border.EmptyBorder;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DocumentFilter;
-import javax.swing.text.PlainDocument;
-
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.client.ui.ClientUI;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.DynamicGridLayout;
-import net.runelite.client.ui.FontManager;
-import net.runelite.client.ui.PluginPanel;
 
 @Slf4j
 class BetterProfilesPanel extends PluginPanel {
@@ -78,9 +60,10 @@ class BetterProfilesPanel extends PluginPanel {
     private static final String ACCOUNT_LABEL = "Account Label";
     private static final String PASSWORD_LABEL = "Account Password";
     private static final String PIN_LABEL = "Bank Pin";
+    private static final String PIN_TOOLTIP = "This pin is used by plugins for banking.";
     private static final String HELP = "To add and load accounts, first enter a password into the Encryption Password " +
             "field then press %s. <br /><br /> You can now add as many accounts as you would like. <br /><br /> The next time you restart " +
-            "openosrs, enter your encryption password and click load accounts to see the accounts you entered.";
+            "RuneLite, enter your encryption password and click on account to auto-fill your data.";
 
     @Inject
     @Nullable
@@ -88,6 +71,8 @@ class BetterProfilesPanel extends PluginPanel {
 
     @Inject
     private BetterProfilesConfig betterProfilesConfig;
+
+    private DocumentFilter digitFilter;
 
     private final JPasswordField txtDecryptPassword = new JPasswordField(UNLOCK_PASSWORD);
     private final JTextField txtAccountLabel = new JTextField(ACCOUNT_LABEL);
@@ -99,7 +84,7 @@ class BetterProfilesPanel extends PluginPanel {
     private final JPanel loginPanel = new JPanel();
 
     void init() {
-        final String LOAD_ACCOUNTS = betterProfilesConfig.salt().length() == 0 ? "Save" : "Unlock";
+        final String LOAD_ACCOUNTS = betterProfilesConfig.salt().isEmpty() ? "Save" : "Unlock";
 
         setLayout(new BorderLayout(0, 10));
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -112,7 +97,7 @@ class BetterProfilesPanel extends PluginPanel {
         helpPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         helpPanel.setLayout(new DynamicGridLayout(1, 1));
 
-        JLabel helpLabel = new JLabel(htmlLabel(String.format(HELP, betterProfilesConfig.salt().length() == 0 ? "save" : "unlock")));
+        JLabel helpLabel = new JLabel(htmlLabel(String.format(HELP, betterProfilesConfig.salt().isEmpty() ? "save" : "unlock")));
         helpLabel.setFont(smallFont);
 
         helpPanel.add(helpLabel);
@@ -121,58 +106,23 @@ class BetterProfilesPanel extends PluginPanel {
         loginPanel.setBorder(new EmptyBorder(10, 10, 10, 3));
         loginPanel.setLayout(new DynamicGridLayout(0, 1, 0, 5));
 
-        txtDecryptPassword.setEchoChar((char) 0);
-        txtDecryptPassword.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        txtDecryptPassword.setToolTipText(UNLOCK_PASSWORD);
+        // Setup for txtDecryptPassword
+        setupPasswordField(txtDecryptPassword, UNLOCK_PASSWORD);
 
-        txtDecryptPassword.addActionListener(e -> decryptAccounts());
-
-        txtDecryptPassword.addFocusListener(new FocusListener() {
+        // Create and set action for the button
+        Action loadAccountsAction = new AbstractAction(LOAD_ACCOUNTS) {
             @Override
-            public void focusGained(FocusEvent e) {
-                if (String.valueOf(txtDecryptPassword.getPassword()).equals(UNLOCK_PASSWORD)) {
-                    txtDecryptPassword.setText("");
-                    txtDecryptPassword.setEchoChar('*');
-                }
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (txtDecryptPassword.getPassword().length == 0) {
-                    txtDecryptPassword.setText(UNLOCK_PASSWORD);
-                    txtDecryptPassword.setEchoChar((char) 0);
-                }
-            }
-        });
-
-        JButton btnLoadAccounts = new JButton(LOAD_ACCOUNTS);
-        btnLoadAccounts.setToolTipText(LOAD_ACCOUNTS);
-        btnLoadAccounts.addMouseListener(new MouseListener() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 decryptAccounts();
             }
+        };
 
-            @Override
-            public void mouseReleased(MouseEvent e) {
+        JButton btnLoadAccounts = new JButton(loadAccountsAction);
+        btnLoadAccounts.setToolTipText(LOAD_ACCOUNTS);
 
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-
-            }
-        });
+        // Binding "Enter" key to the action for txtDecryptPassword
+        txtDecryptPassword.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "loadAccounts");
+        txtDecryptPassword.getActionMap().put("loadAccounts", loadAccountsAction);
 
         loginPanel.add(txtDecryptPassword);
         loginPanel.add(btnLoadAccounts);
@@ -181,132 +131,56 @@ class BetterProfilesPanel extends PluginPanel {
         accountPanel.setBorder(new EmptyBorder(10, 10, 10, 3));
         accountPanel.setLayout(new DynamicGridLayout(0, 1, 0, 5));
 
-        txtAccountLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        txtAccountLabel.addFocusListener(new FocusListener() {
+        // Setup for txtAccountLabel
+        setupTextField(txtAccountLabel, ACCOUNT_LABEL);
+
+        // Setup for txtAccountLogin
+        setupPasswordField(txtAccountLogin, ACCOUNT_USERNAME, betterProfilesConfig.streamerMode());
+
+        // Setup for txtPasswordLogin
+        setupPasswordField(txtPasswordLogin, PASSWORD_LABEL);
+
+        // Setup for pinLogin
+        setupPasswordField(pinLogin, PIN_LABEL);
+
+        digitFilter = new DocumentFilter() {
             @Override
-            public void focusGained(FocusEvent e) {
-                if (txtAccountLabel.getText().equals(ACCOUNT_LABEL)) {
-                    txtAccountLabel.setText("");
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String newText = currentText.substring(0, offset) + text + currentText.substring(offset + length);
+
+                if (newText.matches("\\d{0,4}")) {
+                    super.replace(fb, offset, length, text, attrs);
                 }
             }
 
             @Override
-            public void focusLost(FocusEvent e) {
-                if (txtAccountLabel.getText().isEmpty()) {
-                    txtAccountLabel.setText(ACCOUNT_LABEL);
-                }
-            }
-        });
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+                String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String newText = currentText.substring(0, offset) + string + currentText.substring(offset);
 
-        // Do not hide username characters until they focus or if in streamer mode
-        txtAccountLogin.setEchoChar((char) 0);
-        txtAccountLogin.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        txtAccountLogin.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (ACCOUNT_USERNAME.equals(String.valueOf(txtAccountLogin.getPassword()))) {
-                    txtAccountLogin.setText("");
-                    if (betterProfilesConfig.streamerMode()) {
-                        txtAccountLogin.setEchoChar('*');
-                    }
+                if (newText.matches("\\d{0,4}")) {
+                    super.insertString(fb, offset, string, attr);
                 }
             }
 
             @Override
-            public void focusLost(FocusEvent e) {
-                if (txtAccountLogin.getPassword().length == 0) {
-                    txtAccountLogin.setText(ACCOUNT_USERNAME);
-                    txtAccountLogin.setEchoChar((char) 0);
-                }
-            }
-        });
+            public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
+                String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String newText = currentText.substring(0, offset) + currentText.substring(offset + length);
 
-        txtPasswordLogin.setEchoChar((char) 0);
-        txtPasswordLogin.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        txtPasswordLogin.setToolTipText(PASSWORD_LABEL);
-        txtPasswordLogin.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (PASSWORD_LABEL.equals(String.valueOf(txtPasswordLogin.getPassword()))) {
-                    txtPasswordLogin.setText("");
-                    txtPasswordLogin.setEchoChar('*');
+                if (newText.matches("\\d{0,4}")) {
+                    super.remove(fb, offset, length);
                 }
             }
+        };
 
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (txtPasswordLogin.getPassword().length == 0) {
-                    txtPasswordLogin.setText(PASSWORD_LABEL);
-                    txtPasswordLogin.setEchoChar((char) 0);
-                }
-            }
-        });
-
-        pinLogin.setEchoChar((char) 0);
-        pinLogin.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        pinLogin.setToolTipText("Bank Pin for plugins to enter it");
-        pinLogin.addFocusListener(new FocusListener() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (PIN_LABEL.equals(String.valueOf(pinLogin.getPassword()))) {
-                    pinLogin.setText("");
-                    pinLogin.setEchoChar('*');
-                }
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (pinLogin.getPassword().length == 0) {
-                    pinLogin.setText(PASSWORD_LABEL);
-                    pinLogin.setEchoChar((char) 0);
-                }
-            }
-        });
+        PlainDocument pinDocument = (PlainDocument) pinLogin.getDocument();
+        pinDocument.setDocumentFilter(digitFilter);
 
         JButton btnAddAccount = new JButton("Add Account");
         btnAddAccount.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        btnAddAccount.addActionListener(e ->
-        {
-            String labelText = String.valueOf(txtAccountLabel.getText());
-            String loginText = String.valueOf(txtAccountLogin.getPassword());
-            String passwordText = String.valueOf(txtPasswordLogin.getPassword());
-            String pinText = String.valueOf(pinLogin.getPassword());
-
-            if (labelText.equals(ACCOUNT_LABEL) || loginText.equals(ACCOUNT_USERNAME)) {
-                return;
-            }
-            if (labelText.contains(":") || loginText.contains(":")) {
-                JOptionPane.showMessageDialog(null, "You may not use colons in your label or login name", "Account Switcher", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            String data;
-
-            if (betterProfilesConfig.rememberPassword() && txtPasswordLogin.getPassword() != null) {
-                data = labelText + ":" + loginText + ":" + passwordText + ":" + pinText;
-            } else {
-                data = labelText + ":" + loginText + ":" + pinText;
-            }
-
-            try {
-                if (!addProfile(data)) {
-                    return;
-                }
-
-                redrawProfiles();
-            } catch (InvalidKeySpecException | NoSuchAlgorithmException |
-                     IllegalBlockSizeException | InvalidKeyException | BadPaddingException |
-                     NoSuchPaddingException ex) {
-                log.error(e.toString());
-            }
-
-            txtAccountLabel.setText(ACCOUNT_LABEL);
-
-            txtAccountLogin.setText(ACCOUNT_USERNAME);
-            txtAccountLogin.setEchoChar((char) 0);
-
-            txtPasswordLogin.setText(PASSWORD_LABEL);
-            txtPasswordLogin.setEchoChar((char) 0);
-        });
+        btnAddAccount.addActionListener(e -> addAccount());
 
         txtAccountLogin.addKeyListener(new KeyAdapter() {
             @Override
@@ -314,44 +188,6 @@ class BetterProfilesPanel extends PluginPanel {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     btnAddAccount.doClick();
                     btnAddAccount.requestFocus();
-                }
-            }
-        });
-        txtAccountLogin.addMouseListener(new MouseListener() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-
-
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-
-            }
-        });
-
-        PlainDocument document = (PlainDocument) pinLogin.getDocument();
-        document.setDocumentFilter(new DocumentFilter() {
-            @Override
-            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
-                String string = fb.getDocument().getText(0, fb.getDocument().getLength()) + text;
-
-                if (string.length() <= 4 || text.equals(PIN_LABEL) || string.equals(PIN_LABEL)) {
-                    super.replace(fb, offset, length, text, attrs);
                 }
             }
         });
@@ -370,25 +206,109 @@ class BetterProfilesPanel extends PluginPanel {
         // addAccounts(config.profilesData());
     }
 
+    private void setupTextField(JTextField textField, String placeholder) {
+        textField.setText(placeholder);
+        textField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        textField.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (textField.getText().equals(placeholder)) {
+                    textField.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (textField.getText().isEmpty()) {
+                    textField.setText(placeholder);
+                }
+            }
+        });
+    }
+
+    private void setupPasswordField(JPasswordField passwordField, String placeholder) {
+        setupPasswordField(passwordField, placeholder, false);
+    }
+
+    private void setupPasswordField(JPasswordField passwordField, String placeholder, boolean useEchoChar) {
+        passwordField.setText(placeholder);
+        passwordField.setEchoChar((char) 0);
+        passwordField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        passwordField.setToolTipText(placeholder);
+        passwordField.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (String.valueOf(passwordField.getPassword()).equals(placeholder)) {
+                    passwordField.setText("");
+                }
+                passwordField.setEchoChar('*');
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (passwordField.getPassword().length == 0) {
+                    passwordField.setText(placeholder);
+                    passwordField.setEchoChar((char) 0);
+                }
+            }
+        });
+    }
+
+    private void addAccount() {
+        String labelText = txtAccountLabel.getText();
+        String loginText = String.valueOf(txtAccountLogin.getPassword());
+        String passwordText = String.valueOf(txtPasswordLogin.getPassword());
+        String pinText = String.valueOf(pinLogin.getPassword());
+
+        if (labelText.equals(ACCOUNT_LABEL) || loginText.equals(ACCOUNT_USERNAME)) {
+            return;
+        }
+        if (labelText.contains(":") || loginText.contains(":")) {
+            JOptionPane.showMessageDialog(null, "You may not use colons in your label or login name", "Account Switcher", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String data;
+        if (betterProfilesConfig.rememberPassword() && txtPasswordLogin.getPassword() != null) {
+            data = labelText + ":" + loginText + ":" + passwordText + ":" + pinText;
+        } else {
+            data = labelText + ":" + loginText + ":" + pinText;
+        }
+
+        try {
+            if (!addProfile(data)) {
+                return;
+            }
+            redrawProfiles();
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException |
+                 IllegalBlockSizeException | InvalidKeyException | BadPaddingException |
+                 NoSuchPaddingException ex) {
+            log.error(ex.toString());
+        }
+
+        txtAccountLabel.setText(ACCOUNT_LABEL);
+        txtAccountLogin.setText(ACCOUNT_USERNAME);
+        txtAccountLogin.setEchoChar((char) 0);
+        txtPasswordLogin.setText(PASSWORD_LABEL);
+        txtPasswordLogin.setEchoChar((char) 0);
+        PlainDocument pinDocument = (PlainDocument) pinLogin.getDocument();
+        pinDocument.setDocumentFilter(null);
+        pinLogin.setText(PIN_LABEL);
+        pinLogin.setEchoChar((char) 0);
+        pinDocument.setDocumentFilter(digitFilter);
+    }
+
     private void decryptAccounts() {
         if (txtDecryptPassword.getPassword().length == 0 || String.valueOf(txtDecryptPassword.getPassword()).equals(UNLOCK_PASSWORD)) {
-            showErrorMessage("Unable to load data", "Please enter a password!");
+            log.debug("Unable to load data -- Please enter a password!");
             return;
         }
 
         boolean error = false;
-        try {
-            redrawProfiles();
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | IllegalBlockSizeException |
-                 InvalidKeyException | BadPaddingException | NoSuchPaddingException ex) {
-            error = true;
-            showErrorMessage("Unable to load data", "Incorrect password!");
-            txtDecryptPassword.setText("");
-        }
+        log.debug("Attempting to decrypt accounts with provided password.");
+        redrawProfiles();
 
-        if (error) {
-            return;
-        }
+        if (error) return;
 
         remove(loginPanel);
         add(accountPanel, BorderLayout.CENTER);
@@ -397,24 +317,30 @@ class BetterProfilesPanel extends PluginPanel {
         add(profilesPanel, BorderLayout.SOUTH);
     }
 
-    void redrawProfiles() throws InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
-        profilesPanel.removeAll();
-        addAccounts(getProfileData());
-
-        revalidate();
-        repaint();
+    void redrawProfiles() {
+        try {
+            profilesPanel.removeAll();
+            String profileData = getProfileData();
+            addAccounts(profileData);
+            revalidate();
+            repaint();
+        } catch (Exception e) {
+            log.error("Unexpected error: {}", e.getMessage()); // This basically suppresses the big error block - it says incorrect padding
+        }
     }
 
     private void addAccount(String data) {
-        BetterProfilePanel profile = new BetterProfilePanel(client, data, betterProfilesConfig, this);
-        profilesPanel.add(profile);
-
-        revalidate();
-        repaint();
+        try {
+            BetterProfilePanel profile = new BetterProfilePanel(client, data, betterProfilesConfig, this);
+            profilesPanel.add(profile);
+            revalidate();
+            repaint();
+        } catch (Exception e) {
+            log.warn("Error processing profile data: {}", e.getMessage());
+        }
     }
 
     private void addAccounts(String data) {
-        //log.info("Data: " + data);
         data = data.trim();
         if (!data.contains(":")) {
             return;
@@ -423,16 +349,43 @@ class BetterProfilesPanel extends PluginPanel {
     }
 
     private boolean addProfile(String data) throws InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
-        return setProfileData(
-                getProfileData() + data + "\n");
+        log.debug("Adding profile data: {}", data);
+        String currentData = getProfileData();
+        log.debug("Current profile data: {}", currentData);
+
+        String updatedData = currentData.isEmpty() ? data : currentData + "\n" + data;
+        log.debug("Updated profile data: {}", updatedData);
+
+        return setProfileData(updatedData);
     }
 
     void removeProfile(String data) throws InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
-        setProfileData(
-                getProfileData().replaceAll(data + "\\n", ""));
+        String currentData = getProfileData();
+
+        // Ensure each profile data entry is on a new line and remove the specific profile data
+        String[] profiles = currentData.split("\\n");
+        StringBuilder updatedData = new StringBuilder();
+
+        for (String profile : profiles) {
+            if (!profile.trim().equals(data.trim())) {
+                if (updatedData.length() > 0) {
+                    updatedData.append("\\n");
+                }
+                updatedData.append(profile.trim());
+            }
+        }
+
+        String finalData = updatedData.toString();
+
+        // Set the updated profile data
+        if (setProfileData(finalData)) {
+            log.debug("Profile data successfully updated.");
+        } else {
+            log.error("Failed to update profile data.");
+        }
+
         revalidate();
         repaint();
-
     }
 
     private void setSalt(byte[] bytes) {
@@ -440,7 +393,7 @@ class BetterProfilesPanel extends PluginPanel {
     }
 
     private byte[] getSalt() {
-        if (betterProfilesConfig.salt().length() == 0) {
+        if (betterProfilesConfig.salt().isEmpty()) {
             return new byte[0];
         }
         return base64Decode(betterProfilesConfig.salt());
@@ -460,8 +413,14 @@ class BetterProfilesPanel extends PluginPanel {
     private String getProfileData() throws InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
         String tmp = betterProfilesConfig.profilesData();
         if (tmp.startsWith("¬")) {
-            tmp = tmp.substring(2);
-            return decryptText(base64Decode(tmp), getAesKey());
+            tmp = tmp.substring(1);
+            byte[] decoded = base64Decode(tmp);
+
+            if (decoded.length % 16 != 0) {
+                throw new IllegalStateException("Encrypted data length is not a multiple of 16 bytes");
+            }
+
+            return decryptText(decoded, getAesKey());
         }
         return tmp;
     }
@@ -471,6 +430,13 @@ class BetterProfilesPanel extends PluginPanel {
             showErrorMessage("Unable to save data", "Please enter a password!");
             return false;
         }
+
+        if (data == null || data.trim().isEmpty()) {
+            log.error("Profile data is null or empty.");
+            betterProfilesConfig.profilesData("");  // Set the config to an empty string
+            return true;
+        }
+
         byte[] enc = encryptText(data, getAesKey());
         if (enc.length == 0) {
             return false;
@@ -495,18 +461,28 @@ class BetterProfilesPanel extends PluginPanel {
      * @return encrypted string
      */
     private static byte[] encryptText(String text, SecretKey aesKey) throws NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
-        Cipher cipher = Cipher.getInstance("AES");
+        if (text == null || text.isEmpty()) {
+            log.debug("Encrypting empty text.");
+            return new byte[0];  // Return an empty byte array for empty text
+        }
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         SecretKeySpec newKey = new SecretKeySpec(aesKey.getEncoded(), "AES");
         cipher.init(Cipher.ENCRYPT_MODE, newKey);
         return cipher.doFinal(text.getBytes());
     }
 
     private static String decryptText(byte[] enc, SecretKey aesKey) throws NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, NoSuchPaddingException {
-        Cipher cipher = Cipher.getInstance("AES");
+        if (enc == null || enc.length == 0) {
+            log.debug("Decrypting empty data.");
+            return "";  // Return an empty string for empty byte array
+        }
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         SecretKeySpec newKey = new SecretKeySpec(aesKey.getEncoded(), "AES");
         cipher.init(Cipher.DECRYPT_MODE, newKey);
         return new String(cipher.doFinal(enc));
     }
+
+
 
     private static void showErrorMessage(String title, String text) {
         //TODO FIX

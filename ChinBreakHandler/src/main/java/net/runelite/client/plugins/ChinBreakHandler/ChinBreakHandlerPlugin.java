@@ -322,7 +322,12 @@ public class ChinBreakHandlerPlugin extends Plugin {
     }
 
     public static String sanitizedName(Plugin plugin) {
-        return plugin.getName().toLowerCase().replace(" ", "");
+        String input = plugin.getName().toLowerCase();
+        input = input.replaceAll("<[^>]*>", "");
+        input = input.replaceAll("\\[.*?\\]", "");
+        input = input.replaceAll("[^a-zA-Z0-9\\s]", "");
+        input = input.replaceAll("\\s+", "");
+        return input;
     }
 
     @Subscribe

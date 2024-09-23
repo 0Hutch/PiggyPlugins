@@ -17,6 +17,8 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +38,10 @@ public class ChinBreakHandlerStatusPanel extends JPanel
     private final JLabel runtimeLabel = new JLabel();
     private final JLabel breaksLabel = new JLabel();
 
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+    private final LocalTime inactiveStartTime;
+    private final LocalTime inactiveEndTime;
+
     @Override
     public Dimension getPreferredSize()
     {
@@ -49,6 +55,9 @@ public class ChinBreakHandlerStatusPanel extends JPanel
         this.chinBreakHandlerPluginPlugin = ChinBreakHandlerPlugin;
         this.chinBreakHandler = ChinBreakHandler;
         this.plugin = plugin;
+
+        this.inactiveStartTime = LocalTime.parse(ChinBreakHandlerPlugin.getOptionsConfig().inactiveStartTime(), timeFormatter);
+        this.inactiveEndTime = LocalTime.parse(ChinBreakHandlerPlugin.getOptionsConfig().inactiveEndTime(), timeFormatter);
 
         setLayout(new BorderLayout());
         setBackground(ChinBreakHandlerPanel.BACKGROUND_COLOR);
@@ -94,9 +103,23 @@ public class ChinBreakHandlerStatusPanel extends JPanel
                 absSeconds % 60);
     }
 
+    private boolean isInInactiveHours() {
+        LocalTime now = LocalTime.now();
+
+        if (inactiveStartTime.isBefore(inactiveEndTime)) {
+            return !now.isBefore(inactiveStartTime) && !now.isAfter(inactiveEndTime);
+        } else {
+            return !now.isBefore(inactiveStartTime) || !now.isAfter(inactiveEndTime);
+        }
+    }
+
     private void milliseconds(long ignored)
     {
+
         Instant now = Instant.now();
+
+        boolean isInInactiveHours = isInInactiveHours();
+        boolean isBreakActive = chinBreakHandler.isBreakActive(plugin);
 
         Map<Plugin, Instant> startTimes = chinBreakHandler.getStartTimes();
 
@@ -112,7 +135,11 @@ public class ChinBreakHandlerStatusPanel extends JPanel
         {
             breaksLabel.setText(String.valueOf(chinBreakHandler.getAmountOfBreaks().get(plugin)));
         }
-
+        if (isInInactiveHours && isBreakActive)
+        {
+            timeLabel.setText("Inactive Hours Active");
+            return;
+        }
         if (!chinBreakHandler.isBreakPlanned(plugin) && !chinBreakHandler.isBreakActive(plugin))
         {
             timeLabel.setText("00:00:00");

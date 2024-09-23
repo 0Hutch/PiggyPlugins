@@ -57,7 +57,7 @@ public class ConfigPanel extends FixedWidthPanel
 
     private static final int SPINNER_FIELD_WIDTH = 6;
     public static final List<Disposable> DISPOSABLES = new ArrayList<>();
-
+    private static final int TEXT_FIELD_WIDTH = 10;
     private final ConfigManager configManager;
 
     private ConfigDescriptor pluginConfig = null;
@@ -94,7 +94,7 @@ public class ConfigPanel extends FixedWidthPanel
         rebuild();
     }
 
-    private void rebuild()
+    private void rebuild_old()
     {
         removeAll();
 
@@ -258,6 +258,149 @@ public class ConfigPanel extends FixedWidthPanel
             }
             else
             {
+                topLevelPanels.put(cid, item);
+            }
+        }
+
+        topLevelPanels.values().forEach(this::add);
+
+        revalidate();
+        repaint();
+    }
+
+    private void rebuild() {
+        removeAll();
+
+        final Map<String, JPanel> titleWidgets = new HashMap<>();
+        final Map<ConfigObject, JPanel> topLevelPanels = new TreeMap<>((a, b) ->
+                ComparisonChain.start()
+                        .compare(a.position(), b.position())
+                        .compare(a.name(), b.name())
+                        .result());
+
+        for (ConfigSectionDescriptor ctd : pluginConfig.getSections()) {
+            ConfigSection ct = ctd.getSection();
+            final JPanel title = new JPanel();
+            title.setLayout(new BoxLayout(title, BoxLayout.Y_AXIS));
+            title.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
+
+            final JPanel sectionHeader = new JPanel();
+            sectionHeader.setLayout(new BorderLayout());
+            sectionHeader.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
+
+            title.add(sectionHeader, BorderLayout.NORTH);
+
+            String name = ct.name();
+            final JLabel sectionName = new JLabel(name);
+            sectionName.setForeground(ColorScheme.BRAND_ORANGE);
+            sectionName.setFont(FontManager.getRunescapeBoldFont());
+            sectionName.setToolTipText("<html>" + name + ":<br>" + ct.description() + "</html>");
+            sectionName.setBorder(new EmptyBorder(0, 0, 3, 1));
+            sectionHeader.add(sectionName, BorderLayout.CENTER);
+
+            final JPanel sectionContents = new JPanel();
+            sectionContents.setLayout(new DynamicGridLayout(0, 1, 0, 5));
+            sectionContents.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
+            sectionContents.setBorder(new EmptyBorder(0, 5, 0, 0));
+            title.add(sectionContents, BorderLayout.SOUTH);
+
+            titleWidgets.put(ctd.getKey(), sectionContents);
+            topLevelPanels.put(ctd, title);
+        }
+
+        for (ConfigItemDescriptor cid : pluginConfig.getItems()) {
+            if (!hideUnhide(pluginConfig, cid)) {
+                continue;
+            }
+
+            JPanel item = new JPanel();
+            item.setLayout(new BorderLayout());
+            item.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
+            String name = cid.getItem().name();
+
+            if (!name.isEmpty()) {
+                JLabel configEntryName = new JLabel(name);
+                configEntryName.setForeground(Color.WHITE);
+                configEntryName.setToolTipText("<html>" + name + ":<br>" + cid.getItem().description() + "</html>");
+                item.add(configEntryName, BorderLayout.CENTER);
+            }
+
+            if (cid.getType() == boolean.class) {
+                JCheckBox checkbox = new JCheckBox();
+                checkbox.setBackground(ColorScheme.LIGHT_GRAY_COLOR);
+                checkbox.setSelected(Boolean.parseBoolean(configManager.getConfiguration(pluginConfig.getGroup().value(), cid.getItem().keyName())));
+                checkbox.addActionListener(ae -> changeConfiguration(checkbox, pluginConfig, cid));
+
+                item.add(checkbox, BorderLayout.EAST);
+            } else if (cid.getType() == int.class) {
+                int value = Integer.parseInt(configManager.getConfiguration(pluginConfig.getGroup().value(), cid.getItem().keyName()));
+
+                Units units = cid.getUnits();
+                Range range = cid.getRange();
+                int min = 0, max = Integer.MAX_VALUE;
+                if (range != null) {
+                    min = range.min();
+                    max = range.max();
+                }
+
+                // Config may previously have been out of range
+                value = Ints.constrainToRange(value, min, max);
+
+                SpinnerModel model = new SpinnerNumberModel(value, min, max, 1);
+                JSpinner spinner = new JSpinner(model);
+                Component editor = spinner.getEditor();
+                JFormattedTextField spinnerTextField = ((JSpinner.DefaultEditor) editor).getTextField();
+                spinnerTextField.setColumns(SPINNER_FIELD_WIDTH);
+                spinner.addChangeListener(ce -> changeConfiguration(spinner, pluginConfig, cid));
+
+                if (units != null) {
+                    spinnerTextField.setFormatterFactory(new UnitFormatterFactory(units.value()));
+                }
+
+                item.add(spinner, BorderLayout.EAST);
+            } else if (cid.getType() == String.class) {
+                String value = configManager.getConfiguration(pluginConfig.getGroup().value(), cid.getItem().keyName());
+
+                JTextField textField = new JTextField(value, TEXT_FIELD_WIDTH);
+                textField.addActionListener(ae -> {
+                    configManager.setConfiguration(pluginConfig.getGroup().value(), cid.getItem().keyName(), textField.getText());
+                    changeConfiguration(textField, pluginConfig, cid);
+                });
+                item.add(textField, BorderLayout.EAST);
+            } else if (cid.getType() instanceof Class && ((Class<?>) cid.getType()).isEnum()) {
+                Class<? extends Enum> type = (Class<? extends Enum>) cid.getType();
+
+                JComboBox<Enum<?>> box = new JComboBox<>(type.getEnumConstants()); // NOPMD: UseDiamondOperator
+                box.setRenderer(listCellRenderer);
+                if (!name.isEmpty()) {
+                    box.setPreferredSize(new Dimension(box.getPreferredSize().width, 25));
+                } else {
+                    box.setPreferredSize(new Dimension(PANEL_WIDTH - 10, 25));
+                }
+                box.setForeground(Color.WHITE);
+                box.setFocusable(false);
+
+                try {
+                    Enum<?> selectedItem = Enum.valueOf(type, configManager.getConfiguration(pluginConfig.getGroup().value(), cid.getItem().keyName()));
+                    box.setSelectedItem(selectedItem);
+                    box.setToolTipText(Text.titleCase(selectedItem));
+                } catch (IllegalArgumentException ex) {
+                    log.debug("invalid selected item", ex);
+                }
+                box.addItemListener(e -> {
+                    if (e.getStateChange() == ItemEvent.SELECTED) {
+                        changeConfiguration(box, pluginConfig, cid);
+                        box.setToolTipText(Text.titleCase((Enum<?>) box.getSelectedItem()));
+                    }
+                });
+                item.add(box, BorderLayout.EAST);
+            }
+
+            JPanel title = titleWidgets.get(cid.getItem().section());
+
+            if (title != null) {
+                title.add(item);
+            } else {
                 topLevelPanels.put(cid, item);
             }
         }

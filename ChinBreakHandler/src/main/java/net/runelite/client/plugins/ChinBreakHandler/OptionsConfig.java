@@ -1,14 +1,11 @@
 package net.runelite.client.plugins.ChinBreakHandler;
 
-import net.runelite.client.config.Config;
-import net.runelite.client.config.ConfigGroup;
-import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.*;
 
 @ConfigGroup("piggyBreakHandler")
 public interface OptionsConfig extends Config {
     @ConfigSection(
-            name = "Misc",
+            name = "Settings",
             description = "",
             position = 0
     )
@@ -16,7 +13,7 @@ public interface OptionsConfig extends Config {
 
     @ConfigItem(
             keyName = "stopAfterBreaks",
-            name = "Stop after x breaks",
+            name = "Stop after X breaks",
             description = "Stop after a given amount of breaks (0 to disable)",
             position = 1,
             section = misc
@@ -124,5 +121,46 @@ public interface OptionsConfig extends Config {
     default boolean australian()
     {
         return false;
+    }
+
+    @ConfigSection(
+            name = "Inactive Hours",
+            description = "Set the time range during which the handler will be inactive",
+            position = 3
+    )
+    String inactiveHoursTitle = "Inactive Hours";
+
+    @ConfigItem(
+            keyName = "inactiveHoursToggle",
+            name = "Enable Inactive Hours",
+            description = "Enables Inactive Hours",
+            position = 7,
+            section = inactiveHoursTitle
+    )
+    default boolean inactiveHoursToggle()
+    {
+        return false;
+    }
+
+    @ConfigItem(
+            keyName = "inactiveStartTime",
+            name = "Start Time",
+            description = "Start time of the inactive period (24-hour format, e.g., 22:00)",
+            position = 1,
+            section = inactiveHoursTitle
+    )
+    default String inactiveStartTime() {
+        return "00:00";
+    }
+
+    @ConfigItem(
+            keyName = "inactiveEndTime",
+            name = "End Time",
+            description = "End time of the inactive period (24-hour format, e.g., 06:00)",
+            position = 2,
+            section = inactiveHoursTitle
+    )
+    default String inactiveEndTime() {
+        return "00:00";
     }
 }

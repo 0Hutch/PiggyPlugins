@@ -106,7 +106,7 @@ public class ChinBreakHandlerAccountPanel extends JPanel
         });
 
         jagexLauncherButton.addActionListener(e -> {
-            configManager.setConfiguration("piggyBreakHandler", "accountselection", LoginMode.PROFILES);
+            configManager.setConfiguration("piggyBreakHandler", "accountselection", LoginMode.LAUNCHER);
             contentPanel(LoginMode.LAUNCHER);
         });
 
@@ -207,7 +207,8 @@ public class ChinBreakHandlerAccountPanel extends JPanel
             {
                 try
                 {
-                    ChinBreakHandlerPlugin.data = ProfilesData.getProfileData(configManager, passwordField.getPassword());
+                    ProfilesData profilesData = new ProfilesData();
+                    ChinBreakHandlerPlugin.data = profilesData.getProfileData(configManager, passwordField.getPassword());
                     contentPanel(LoginMode.PROFILES);
                 }
                 catch (InvalidKeySpecException | NoSuchPaddingException | BadPaddingException | InvalidKeyException | IllegalBlockSizeException | NoSuchAlgorithmException ignored)

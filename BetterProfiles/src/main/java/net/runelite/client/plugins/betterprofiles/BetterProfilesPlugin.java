@@ -25,15 +25,7 @@
 package net.runelite.client.plugins.betterprofiles;
 
 import com.google.inject.Provides;
-
-import java.awt.image.BufferedImage;
-import java.util.concurrent.ScheduledExecutorService;
-import java.security.GeneralSecurityException;
-import javax.inject.Inject;
-import javax.swing.*;
-
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -45,9 +37,12 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 
+import javax.inject.Inject;
+import java.awt.image.BufferedImage;
+import java.util.concurrent.ScheduledExecutorService;
+
 @PluginDescriptor(
         name = "<html><font color=\"#FF9DF9\">[PP]</font> Better Profiles</html>",
-        enabledByDefault = false,
         description = "Allow for a allows you to easily switch between multiple OSRS Accounts - Ported by Piggy",
         tags = {"profile", "account", "login", "log in", "pklite"}
 )
@@ -67,6 +62,7 @@ public class BetterProfilesPlugin extends Plugin {
 
     private BetterProfilesPanel panel;
     private NavigationButton navButton;
+    private BufferedImage icon;
 
     @Provides
     BetterProfilesConfig getConfig(ConfigManager configManager) {
@@ -78,16 +74,22 @@ public class BetterProfilesPlugin extends Plugin {
         panel = injector.getInstance(BetterProfilesPanel.class);
         panel.init();
 
-        final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "profiles_icon.png");
+        if (icon == null) {
+            icon = ImageUtil.loadImageResource(getClass(), "profiles_icon.png");
+        }
 
-        navButton = NavigationButton.builder()
-                .tooltip("Profiles")
-                .icon(icon)
-                .priority(8)
-                .panel(panel)
-                .build();
+        if (icon != null) {
+            navButton = NavigationButton.builder()
+                    .tooltip("Profiles")
+                    .icon(icon)
+                    .priority(8)
+                    .panel(panel)
+                    .build();
 
-        clientToolbar.addNavigation(navButton);
+            clientToolbar.addNavigation(navButton);
+        } else {
+            log.error("Failed to load profiles_icon.png");
+        }
     }
 
     @Override
@@ -110,11 +112,7 @@ public class BetterProfilesPlugin extends Plugin {
             }
             if (!event.getKey().equals("rememberPassword")) {
                 panel = injector.getInstance(BetterProfilesPanel.class);
-                try {
-                    panel.redrawProfiles();
-                } catch (GeneralSecurityException gse) {
-                    log.error("Error redrawing profiles panel", gse);
-                }
+                panel.redrawProfiles();
             }
         }
     }

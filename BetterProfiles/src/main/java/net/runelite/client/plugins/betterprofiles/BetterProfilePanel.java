@@ -56,7 +56,7 @@ class BetterProfilePanel extends JPanel {
     private static final ImageIcon DELETE_HOVER_ICON;
 
     static {
-        final BufferedImage deleteImg = ImageUtil.getResourceStreamFromClass(BetterProfilesPlugin.class, "delete_icon.png");
+        final BufferedImage deleteImg = ImageUtil.getResourceStreamFromClass(BetterProfilesPlugin.class, "/net/runelite/client/plugins/betterprofiles/delete_icon.png");
         DELETE_ICON = new ImageIcon(deleteImg);
         DELETE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(deleteImg, -100));
     }
