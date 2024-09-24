@@ -19,16 +19,6 @@ public interface DialogueContinuerConfig extends Config {
     }
 
     @ConfigItem(
-            keyName = "Toggle",
-            name = "Toggle",
-            description = "",
-            position = 0
-    )
-    default Keybind toggle() {
-        return Keybind.NOT_SET;
-    }
-
-    @ConfigItem(
             name = "Continue Dialogue",
             description = "",
             position = 20,
