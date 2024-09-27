@@ -1,0 +1,886 @@
+/*
+ * Copyright (c) 2018, Adam <Adam@sigterm.info>
+ * All rights reserved.
+ *
+ * Modified by farhan1666
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+package com.piggyplugins.AoeWarn;
+
+import java.awt.Color;
+import java.awt.Font;
+import java.util.Set;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigGroup;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Range;
+
+@ConfigGroup("aoe")
+public interface AoeWarningConfig extends Config
+{
+	@Getter(AccessLevel.PACKAGE)
+	@AllArgsConstructor
+	enum FontStyle
+	{
+		BOLD("Bold", Font.BOLD),
+		ITALIC("Italic", Font.ITALIC),
+		PLAIN("Plain", Font.PLAIN);
+
+		private String name;
+		private int font;
+
+		@Override
+		public String toString()
+		{
+			return getName();
+		}
+	}
+
+	@AllArgsConstructor
+	enum VorkathMode
+	{
+		BOMBS(AoeProjectileInfo.VORKATH_BOMB),
+		POOLS(AoeProjectileInfo.VORKATH_POISON_POOL),
+		SPAWN(AoeProjectileInfo.VORKATH_SPAWN),
+		FIRES(AoeProjectileInfo.VORKATH_TICK_FIRE); // full auto ratatat
+
+		private final AoeProjectileInfo info;
+		static VorkathMode of(AoeProjectileInfo info)
+		{
+			for (VorkathMode m : values())
+			{
+				if (m.info == info)
+				{
+					return m;
+				}
+			}
+			throw new EnumConstantNotPresentException(AoeProjectileInfo.class, info.toString());
+		}
+	}
+
+	@ConfigSection(
+			name = "<html>AoE Warnings<br>Version 1.1.1</html>",
+			description = "",
+			position = -2,
+			closedByDefault = true
+	)
+	String versionInfo = "Version";
+
+
+	@ConfigSection(
+			name = "Notify",
+			description = "",
+			position = -1
+	)
+	String notifyTitle = "Notify";
+
+	@ConfigItem(
+			keyName = "aoeNotifyAll",
+			name = "Notificar todas las advertencias de AoE",
+			description = "Configures whether or not AoE Projectile Warnings should trigger a notification",
+			position = 0,
+			section = notifyTitle
+	)
+	default boolean aoeNotifyAll()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Overlay",
+			description = "",
+			position = 1
+	)
+	String overlayTitle = "Overlay";
+
+	@ConfigItem(
+			position = 2,
+			keyName = "overlayColor",
+			name = "Color de superposición",
+			description = "Configures the color of the AoE Projectile Warnings overlay",
+			section = overlayTitle
+	)
+	default Color overlayColor()
+	{
+		return new Color(0, 150, 200);
+	}
+
+	@ConfigItem(
+			keyName = "outline",
+			name = "Esquema de visualización",
+			description = "Configures whether or not AoE Projectile Warnings have an outline",
+			section = overlayTitle,
+			position = 3
+	)
+	default boolean isOutlineEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "delay",
+			name = "Fade Delay",
+			description = "Configures the amount of time in milliseconds that the warning lingers for after the projectile has touched the ground",
+			section = overlayTitle,
+			position = 4
+	)
+	default int delay()
+	{
+		return 300;
+	}
+
+	@ConfigItem(
+			keyName = "fade",
+			name = "Fade Warnings",
+			description = "Configures whether or not AoE Projectile Warnings fade over time",
+			section = overlayTitle,
+			position = 5
+	)
+	default boolean isFadeEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "tickTimers",
+			name = "Tick Timers",
+			description = "Configures whether or not AoE Projectile Warnings has tick timers overlaid as well.",
+			section = overlayTitle,
+			position = 6
+	)
+	default boolean tickTimers()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+			position = 7,
+			name = "Text",
+			description = ""
+	)
+	String textTitle = "Text";
+
+	@ConfigItem(
+			position = 8,
+			keyName = "fontStyle",
+			name = "Font Style",
+			description = "Bold/Italics/Plain",
+			section = textTitle
+	)
+	default FontStyle fontStyle()
+	{
+		return FontStyle.BOLD;
+	}
+
+	@Range(
+			min = 10,
+			max = 40
+	)
+	@ConfigItem(
+			position = 9,
+			keyName = "textSize",
+			name = "Text Size",
+			description = "Text Size for Timers.",
+			section = textTitle
+	)
+	default int textSize()
+	{
+		return 32;
+	}
+
+	@ConfigItem(
+			position = 10,
+			keyName = "shadows",
+			name = "Shadows",
+			description = "Adds Shadows to text.",
+			section = textTitle
+	)
+	default boolean shadows()
+	{
+		return true;
+	}
+	@ConfigSection(
+			name = "Lizardman Shamans",
+			description = "",
+			position = 12
+	)
+	String lizardmanaoeTitle = "Lizardman Shamans";
+
+	@ConfigItem(
+			keyName = "lizardmanaoe",
+			name = "Lizardman Shamans",
+			description = "Configures whether or not AoE Projectile Warnings for Lizardman Shamans is displayed",
+			section = lizardmanaoeTitle,
+			position = 13
+	)
+	default boolean isShamansEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "lizardmanaoenotify",
+			name = "Lizardman Shamans Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Lizardman Shamans should trigger a notification",
+			section = lizardmanaoeTitle,
+			position = 14
+	)
+	default boolean isShamansNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Crazy Archaeologist",
+			description = "",
+			position = 15
+	)
+	String archaeologistaoeTitle = "Crazy Archaeologist";
+
+	@ConfigItem(
+			keyName = "archaeologistaoe",
+			name = "Crazy Archaeologist",
+			description = "Configures whether or not AoE Projectile Warnings for Archaeologist is displayed",
+			section = archaeologistaoeTitle,
+			position = 16
+	)
+	default boolean isArchaeologistEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "archaeologistaoenotify",
+			name = "Crazy Archaeologist Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Crazy Archaeologist should trigger a notification",
+			section = archaeologistaoeTitle,
+			position = 17
+	)
+	default boolean isArchaeologistNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Ice Demon",
+			description = "",
+			position = 18
+	)
+	String icedemonTitle = "Ice Demon";
+
+	@ConfigItem(
+			keyName = "icedemon",
+			name = "Ice Demon",
+			description = "Configures whether or not AoE Projectile Warnings for Ice Demon is displayed",
+			section = icedemonTitle,
+			position = 19
+	)
+	default boolean isIceDemonEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "icedemonnotify",
+			name = "Ice Demon Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Ice Demon should trigger a notification",
+			section = icedemonTitle,
+			position = 20
+	)
+	default boolean isIceDemonNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Vasa",
+			description = "",
+			position = 21
+	)
+	String vasaTitle = "Vasa";
+
+	@ConfigItem(
+			keyName = "vasa",
+			name = "Vasa",
+			description = "Configures whether or not AoE Projectile Warnings for Vasa is displayed",
+			section = vasaTitle,
+			position = 22
+	)
+	default boolean isVasaEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "vasanotify",
+			name = "Vasa Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Vasa should trigger a notification",
+			section = vasaTitle,
+			position = 23
+	)
+	default boolean isVasaNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Tekton",
+			description = "",
+			position = 24
+	)
+	String tektonTitle = "Tekton";
+
+	@ConfigItem(
+			keyName = "tekton",
+			name = "Tekton",
+			description = "Configures whether or not AoE Projectile Warnings for Tekton is displayed",
+			section = tektonTitle,
+			position = 25
+	)
+	default boolean isTektonEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "tektonnotify",
+			name = "Tekton Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Tekton should trigger a notification",
+			section = tektonTitle,
+			position = 26
+	)
+	default boolean isTektonNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Vorkath",
+			description = "",
+			position = 27
+	)
+	String vorkathTitle = "Vorkath";
+
+	@ConfigItem(
+			keyName = "vorkathModes",
+			name = "Vorkath",
+			description = "Configure what AoE projectiles you should be warned for at Vorkath",
+			section = vorkathTitle,
+			position = 28
+	)
+	default Set<VorkathMode> vorkathModes()
+	{
+		return Set.of(VorkathMode.BOMBS, VorkathMode.FIRES, VorkathMode.POOLS, VorkathMode.SPAWN);
+	}
+
+	@ConfigItem(
+			keyName = "vorkathotify",
+			name = "Vorkath Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Vorkath should trigger a notification",
+			section = vorkathTitle,
+			position = 29
+	)
+	default boolean isVorkathNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Galvek",
+			description = "",
+			position = 30
+	)
+	String galvekTitle = "Galvek";
+
+	@ConfigItem(
+			keyName = "galvek",
+			name = "Galvek",
+			description = "Configures whether or not AoE Projectile Warnings for Galvek are displayed",
+			section = galvekTitle,
+			position = 31
+	)
+	default boolean isGalvekEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "galveknotify",
+			name = "Galvek Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Galvek should trigger a notification",
+			section = galvekTitle,
+			position = 32
+	)
+	default boolean isGalvekNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Gargoyle Boss",
+			description = "",
+			position = 33
+	)
+	String gargbossTitle = "Gargoyle Boss";
+
+	@ConfigItem(
+			keyName = "gargboss",
+			name = "Gargoyle Boss",
+			description = "Configs whether or not AoE Projectile Warnings for Dawn/Dusk are displayed",
+			section = gargbossTitle,
+			position = 34
+	)
+	default boolean isGargBossEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "gargbossnotify",
+			name = "Gargoyle Boss Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Gargoyle Bosses should trigger a notification",
+			section = gargbossTitle,
+			position = 35
+	)
+	default boolean isGargBossNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Vet'ion",
+			description = "",
+			position = 36
+	)
+	String vetionTitle = "Vet'ion";
+
+	@ConfigItem(
+			keyName = "vetion",
+			name = "Vet'ion",
+			description = "Configures whether or not AoE Projectile Warnings for Vet'ion are displayed",
+			section = vetionTitle,
+			position = 37
+	)
+	default boolean isVetionEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "vetionnotify",
+			name = "Vet'ion Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Vet'ion should trigger a notification",
+			section = vetionTitle,
+			position = 38
+	)
+	default boolean isVetionNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Chaos Fanatic",
+			description = "",
+			position = 39
+	)
+	String chaosfanaticTitle = "Chaos Fanatic";
+
+	@ConfigItem(
+			keyName = "chaosfanatic",
+			name = "Chaos Fanatic",
+			description = "Configures whether or not AoE Projectile Warnings for Chaos Fanatic are displayed",
+			section = chaosfanaticTitle,
+			position = 40
+	)
+	default boolean isChaosFanaticEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "chaosfanaticnotify",
+			name = "Chaos Fanatic Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Chaos Fanatic should trigger a notification",
+			section = chaosfanaticTitle,
+			position = 41
+	)
+	default boolean isChaosFanaticNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Olm",
+			description = "",
+			position = 42
+	)
+	String olmTitle = "Olm";
+
+	@ConfigItem(
+			keyName = "olm",
+			name = "Olm",
+			description = "Configures whether or not AoE Projectile Warnings for The Great Olm are displayed",
+			section = olmTitle,
+			position = 43
+	)
+	default boolean isOlmEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "olmnotify",
+			name = "Olm Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Olm should trigger a notification",
+			section = olmTitle,
+			position = 44
+	)
+	default boolean isOlmNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "bombDisplay",
+			name = "Olm Bombs",
+			description = "Display a timer and colour-coded AoE for Olm's crystal-phase bombs.",
+			section = olmTitle,
+			position = 46
+	)
+	default boolean bombDisplay()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "bombHeatmap",
+			name = "Bomb heatmap",
+			description = "Display a heatmap based on bomb tile severity.",
+			section = olmTitle,
+			position = 47
+	)
+	default boolean bombHeatmap()
+	{
+		return false;
+	}
+
+	@Range(max = 100)
+	@ConfigItem(
+			keyName = "bombHeatmapOpacity",
+			name = "Bomb opacity",
+			description = "Heatmap color opacity.",
+			section = olmTitle,
+			position = 48
+	)
+	default int bombHeatmapOpacity()
+	{
+		return 50;
+	}
+
+	@ConfigItem(
+			keyName = "bombDisplaynotify",
+			name = "Olm Bombs Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Olm Bombs should trigger a notification",
+			section = olmTitle,
+			position = 49
+	)
+	default boolean bombDisplayNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "lightning",
+			name = "Olm Lightning Trails",
+			description = "Show Lightning Trails",
+			section = olmTitle,
+			position = 50
+	)
+	default boolean LightningTrail()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "lightningnotify",
+			name = "Olm Lightning Trails Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Olm Lightning Trails should trigger a notification",
+			section = olmTitle,
+			position = 51
+	)
+	default boolean LightningTrailNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Corporeal Beast",
+			description = "",
+			position = 51
+	)
+	String corpTitle = "Corporeal Beast";
+
+	@ConfigItem(
+			keyName = "corp",
+			name = "Corporeal Beast",
+			description = "Configures whether or not AoE Projectile Warnings for the Corporeal Beast are displayed",
+			section = corpTitle,
+			position = 53
+	)
+	default boolean isCorpEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "corpnotify",
+			name = "Corporeal Beast Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Corporeal Beast should trigger a notification",
+			section = corpTitle,
+			position = 53
+	)
+	default boolean isCorpNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Wintertodt",
+			description = "",
+			position = 54
+	)
+	String wintertodtTitle = "Wintertodt";
+
+	@ConfigItem(
+			keyName = "wintertodt",
+			name = "Wintertodt Snow Fall",
+			description = "Configures whether or not AOE Projectile Warnings for the Wintertodt snow fall are displayed",
+			section = wintertodtTitle,
+			position = 55
+	)
+	default boolean isWintertodtEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "wintertodtnotify",
+			name = "Wintertodt Snow Fall Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Wintertodt Snow Fall Notify should trigger a notification",
+			section = wintertodtTitle,
+			position = 56
+	)
+	default boolean isWintertodtNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Xarpus",
+			description = "",
+			position = 57
+	)
+	String xarpusTitle = "Xarpus";
+
+	@ConfigItem(
+			keyName = "isXarpusEnabled",
+			name = "Xarpus",
+			description = "Configures whether or not AOE Projectile Warnings for Xarpus are displayed",
+			section = xarpusTitle,
+			position = 58
+	)
+	default boolean isXarpusEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "isXarpusEnablednotify",
+			name = "Xarpus Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Xarpus should trigger a notification",
+			section = xarpusTitle,
+			position = 59
+	)
+	default boolean isXarpusNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Addy Drags",
+			description = "",
+			position = 60
+	)
+	String addyDragsTitle = "Addy Drags";
+
+	@ConfigItem(
+			keyName = "addyDrags",
+			name = "Addy Drags",
+			description = "Show Bad Areas",
+			section = addyDragsTitle,
+			position = 61
+	)
+	default boolean addyDrags()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "addyDragsnotify",
+			name = "Addy Drags Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Addy Dragons should trigger a notification",
+			section = addyDragsTitle,
+			position = 62
+	)
+	default boolean addyDragsNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Drakes",
+			description = "",
+			position = 63
+	)
+	String drakeTitle = "Drakes";
+
+	@ConfigItem(
+			keyName = "drake",
+			name = "Drakes Breath",
+			description = "Configures if Drakes Breath tile markers are displayed",
+			section = drakeTitle,
+			position = 64
+	)
+	default boolean isDrakeEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "drakenotify",
+			name = "Drakes Breath Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Drakes Breath should trigger a notification",
+			section = drakeTitle,
+			position = 65
+	)
+	default boolean isDrakeNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Cerberus",
+			description = "",
+			position = 66
+	)
+	String cerberusTitle = "Cerberus";
+
+	@ConfigItem(
+			keyName = "cerbFire",
+			name = "Cerberus Fire",
+			description = "Configures if Cerberus fire tile markers are displayed",
+			section = cerberusTitle,
+			position = 67
+	)
+	default boolean isCerbFireEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "cerbFirenotify",
+			name = "Cerberus Fire Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Cerberus his fire should trigger a notification",
+			section = cerberusTitle,
+			position = 68
+	)
+	default boolean isCerbFireNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Demonic Gorilla",
+			description = "",
+			position = 69
+	)
+	String demonicGorillaTitle = "Demonic Gorilla";
+
+	@ConfigItem(
+			keyName = "demonicGorilla",
+			name = "Demonic Gorilla",
+			description = "Configures if Demonic Gorilla boulder tile markers are displayed",
+			section = demonicGorillaTitle,
+			position = 70
+	)
+	default boolean isDemonicGorillaEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "demonicGorillaNotify",
+			name = "Demonic Gorilla Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Demonic Gorilla boulders should trigger a notification",
+			section = demonicGorillaTitle,
+			position = 71
+	)
+	default boolean isDemonicGorillaNotifyEnabled()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+			name = "Verzik",
+			description = "",
+			position = 72
+	)
+	String verzikTitle = "Verzik";
+
+	@ConfigItem(
+			keyName = "verzik",
+			name = "Verzik",
+			description = "Configures if Verzik purple Nylo/falling rock AOE is shown",
+			section = verzikTitle,
+			position = 73
+	)
+	default boolean isVerzikEnabled()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "verzikNotify",
+			name = "Verzik Notify",
+			description = "Configures whether or not AoE Projectile Warnings for Verzik boulders/purple nylo should trigger a notification",
+			section = verzikTitle,
+			position = 74
+	)
+	default boolean isVerzikNotifyEnabled()
+	{
+		return false;
+	}
+}

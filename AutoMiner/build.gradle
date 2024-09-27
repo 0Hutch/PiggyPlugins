@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation 'org.json:json:20230227'
+    implementation 'org.roaringbitmap:RoaringBitmap:0.9.44'
+    implementation("com.google.archivepatcher:archive-patch-applier:1.0.4")
+    implementation("org.benf:cfr:0.152")
+    implementation project(path: ':EthansApi')
+}
+
+sourceSets {
+
+    main {
+
+        java {
+            srcDir "src"
+        }
+
+    }
+}
+
+group 'com.ozplugins'
+version '0.2.1'
+
+test {
+    useJUnitPlatform()
+}
+
+task BuildJars(type: Jar) {
+    manifest {
+        attributes 'Main-Class': 'com.ozplugins.Main'
+    }
+    baseName = 'auto-miner'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+tasks.register("prepareKotlinBuildScriptModel"){}

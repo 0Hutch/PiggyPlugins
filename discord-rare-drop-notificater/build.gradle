@@ -1,0 +1,40 @@
+plugins {
+	id 'java'
+	id 'idea'
+    id "io.freefair.lombok" version "5.3.0"
+}
+
+repositories {
+	mavenLocal()
+	maven {
+		url = 'https://repo.runelite.net'
+	}
+	mavenCentral()
+}
+
+def runeLiteVersion = 'latest.release'
+
+dependencies {
+	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
+    implementation group: 'org.json', name: 'json', version: '20220320'
+    implementation group: 'org.jsoup', name: 'jsoup', version: '1.15.3'
+
+	testImplementation 'junit:junit:4.13.2'
+	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
+}
+
+idea {
+	module {
+		downloadJavadoc = false
+		downloadSources = false
+	}
+}
+
+group = 'com.masterkenth'
+version = '1.4.1'
+sourceCompatibility = '1.8'
+
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+	options.encoding = 'UTF-8'
+}

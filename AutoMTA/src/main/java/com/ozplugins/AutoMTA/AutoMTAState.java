@@ -1,0 +1,16 @@
+package com.ozplugins.AutoMTA;
+
+public enum AutoMTAState {
+    TIMEOUT,
+    HANDLE_BREAK,
+    ANIMATING,
+    HANDLE_ALCHEMY,
+    HANDLE_GRAVEYARD,
+    HANDLE_ENCHANTMENT,
+    HANDLE_TELEKINETIC,
+    HANDLE_GO_IN_ROOM,
+    UNHANDLED_STATE,
+    BANK_PIN,
+    MOVING,
+    IDLE;
+}

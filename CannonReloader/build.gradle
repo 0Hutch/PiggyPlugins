@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    compileOnly project(":EthansApi")
+    compileOnly project(":PiggyUtils")
+}
+
+sourceSets {
+
+    main {
+
+        java {
+            srcDir "src"
+        }
+
+    }
+}
+
+group 'com.piggyplugins'
+version '1.0.0'
+
+test {
+    useJUnitPlatform()
+}
+
+task PiggyJar(type: Jar) {
+    manifest {
+    }
+    baseName = 'cannon-reloader'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+tasks.register("prepareKotlinBuildScriptModel"){}
