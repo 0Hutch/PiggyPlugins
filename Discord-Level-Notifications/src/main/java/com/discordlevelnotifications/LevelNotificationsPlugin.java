@@ -163,7 +163,7 @@ public class LevelNotificationsPlugin extends Plugin
 				}
 			}
 
-			levelUpString += " Subio " + skill + " a " + currentLevels.get(skill) + " \n**Plugin:** Elite\n**Discord:** freedarwuin  \n**Actualizacion:** 17/08/2024";
+			levelUpString += " Subio " + skill + " a " + currentLevels.get(skill) + " \n**Plugin:** Elite\n**Discord:** wendi29  \n**Actualizacion:** 17/08/2024";
 		}
 
 		DiscordWebhookBody discordWebhookBody = new DiscordWebhookBody();
