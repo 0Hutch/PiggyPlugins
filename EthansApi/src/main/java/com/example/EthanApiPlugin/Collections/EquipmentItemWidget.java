@@ -56,6 +56,9 @@ public class EquipmentItemWidget implements Widget {
     }
 
     @Override
+    public void clearActions(){};
+
+    @Override
     public int getContentType() {
         return 0;
     }
@@ -473,11 +476,6 @@ public class EquipmentItemWidget implements Widget {
     }
 
     @Override
-    public void clearActions() {
-
-    }
-
-    @Override
     public void setOnOpListener(Object... args) {
 
     }
@@ -740,6 +738,11 @@ public class EquipmentItemWidget implements Widget {
     @Override
     public void setNoScrollThrough(boolean noScrollThrough) {
 
+    }
+
+    @Override
+    public int[] getVarTransmitTrigger() {
+        return null;
     }
 
     @Override

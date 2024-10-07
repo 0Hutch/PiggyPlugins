@@ -2,6 +2,7 @@ package com.example.EthanApiPlugin;
 
 import com.example.EthanApiPlugin.Collections.*;
 import com.example.EthanApiPlugin.Collections.query.QuickPrayer;
+import com.example.EthanApiPlugin.PathFinding.Node;
 import com.example.PacketUtils.ObfuscatedNames;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -11,12 +12,10 @@ import lombok.SneakyThrows;
 import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.GameTick;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.RuneLite;
 import net.runelite.client.eventbus.EventBus;
-import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -104,51 +103,10 @@ public class EthanApiPlugin extends Plugin {
         return client.getLocalPlayer().getWorldLocation();
     }
 
+    @Deprecated //apparently RL no longer blocks this on non-local players.
     public static int getSkullIcon(Player player) {
-        Field skullField = null;
-        try {
-            skullField = player.getClass().getDeclaredField(ObfuscatedNames.skullIconField);
-            skullField.setAccessible(true);
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-            return -1;
-        }
-        int var1 = -1;
-        try {
-            var1 = skullField.getInt(player) * ObfuscatedNames.skullIconMultiplier;
-            skullField.setAccessible(false);
-        } catch (IllegalAccessException | NullPointerException e) {
-            e.printStackTrace();
-        }
-        return var1;
+        return player.getSkullIcon();
     }
-
-    /*
-            switch (var1) {
-            case 0:
-                return SkullIcon.SKULL;
-            case 1:
-                return SkullIcon.SKULL_FIGHT_PIT;
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            default:
-                return null;
-            case 8:
-                return SkullIcon.DEAD_MAN_FIVE;
-            case 9:
-                return SkullIcon.DEAD_MAN_FOUR;
-            case 10:
-                return SkullIcon.DEAD_MAN_THREE;
-            case 11:
-                return SkullIcon.DEAD_MAN_TWO;
-            case 12:
-                return SkullIcon.DEAD_MAN_ONE;
-        }
-     */
 
     public static boolean isQuickPrayerActive(QuickPrayer prayer) {
         return (client.getVarbitValue(4102) & (int) Math.pow(2, prayer.getIndex())) == Math.pow(2, prayer.getIndex());
@@ -202,48 +160,71 @@ public class EthanApiPlugin extends Plugin {
     }
 
 
-    //    @SneakyThrows
-//    public static int pathLength(NPC npc) {
-//        Field pathLength = npc.getClass().getSuperclass().getDeclaredField("dk");
-//        pathLength.setAccessible(true);
-//        int path = pathLength.getInt(npc) * -1259578643;
-//        pathLength.setAccessible(false);
-//        return path;
-//    }
-//
-//    @SneakyThrows
-//    public static int pathLength(Player player) {
-//        Field pathLength = player.getClass().getSuperclass().getDeclaredField("dk");
-//        pathLength.setAccessible(true);
-//        int path = pathLength.getInt(player) * -1259578643;
-//        pathLength.setAccessible(false);
-//        return path;
-//    }
+
     @SneakyThrows
     public static HeadIcon getHeadIcon(NPC npc) {
-        Field aq = npc.getClass().getDeclaredField("aq");
+        Field aq = npc.getClass().getDeclaredField("ay");
         aq.setAccessible(true);
         Object aqObj = aq.get(npc);
         if (aqObj == null) {
             aq.setAccessible(false);
-            return getOldHeadIcon(npc);
+            HeadIcon icon = getOldHeadIcon(npc);
+            if(icon==null){
+                return getOlderHeadicon(npc);
+            }
+            return icon;
         }
-        Field aeField = aqObj.getClass().getDeclaredField("ae");
+        Field aeField = aqObj.getClass().getDeclaredField("aw");
         aeField.setAccessible(true);
         short[] ae = (short[]) aeField.get(aqObj);
         aeField.setAccessible(false);
         aq.setAccessible(false);
         if (ae == null) {
-            return getOldHeadIcon(npc);
+            HeadIcon icon = getOldHeadIcon(npc);
+            if(icon==null){
+                return getOlderHeadicon(npc);
+            }
+            return icon;
         }
         if (ae.length == 0) {
-            return getOldHeadIcon(npc);
+            HeadIcon icon = getOldHeadIcon(npc);
+            if(icon==null){
+                return getOlderHeadicon(npc);
+            }
+            return icon;
         }
         short headIcon = ae[0];
         if (headIcon == -1) {
-            return getOldHeadIcon(npc);
+            HeadIcon icon = getOldHeadIcon(npc);
+            if(icon==null){
+                return getOlderHeadicon(npc);
+            }
+            return icon;
         }
         return HeadIcon.values()[headIcon];
+    }
+    @SneakyThrows
+    public static HeadIcon getOlderHeadicon(NPC npc){
+        Method getHeadIconMethod = null;
+        for (Method declaredMethod : npc.getComposition().getClass().getDeclaredMethods()) {
+            if (declaredMethod.getName().length() == 2 && declaredMethod.getReturnType() == short.class && declaredMethod.getParameterCount() == 1) {
+                getHeadIconMethod = declaredMethod;
+                getHeadIconMethod.setAccessible(true);
+                short headIcon = -1;
+                try {
+                    headIcon = (short) getHeadIconMethod.invoke(npc.getComposition(), 0);
+                }catch (Exception e){
+                    //nothing
+                }
+                getHeadIconMethod.setAccessible(false);
+
+                if (headIcon == -1) {
+                    continue;
+                }
+                return HeadIcon.values()[headIcon];
+            }
+        }
+        return null;
     }
 
     @SneakyThrows
@@ -425,7 +406,7 @@ public class EthanApiPlugin extends Plugin {
     }
 
     @Deprecated
-    public static TileObject findObject(String objectName) {
+    public static  TileObject findObject(String objectName) {
         ArrayList<TileObject> validObjects = new ArrayList<>();
         for (Tile[][] tile : client.getScene().getTiles()) {
             for (Tile[] tiles : tile) {
@@ -454,7 +435,7 @@ public class EthanApiPlugin extends Plugin {
 
     @Deprecated // use client menuAction
     @SneakyThrows
-    public static void invoke(int var0, int var1, int var2, int var3, int var4,int var5, String var6, String var7, int var8,
+    public static void invoke(int var0, int var1, int var2, int var3, int var4, int var5, String var6, String var7, int var8,
                               int var9) {
         if (doAction == null) {
             Class<?> qtClass = null;
@@ -472,7 +453,7 @@ public class EthanApiPlugin extends Plugin {
 
             if (qtClass != null) {
                 try {
-                    doAction = qtClass.getDeclaredMethod(ObfuscatedNames.doActionMethodName, int.class, int.class, int.class, int.class, int.class, int.class, String.class, String.class, int.class, int.class, int.class);
+                    doAction = qtClass.getDeclaredMethod(ObfuscatedNames.doActionMethodName, int.class, int.class, int.class, int.class, int.class, int.class, String.class, String.class, int.class, int.class);
                 } catch (NoSuchMethodException ignored) {
                 }
             } else {
@@ -482,17 +463,8 @@ public class EthanApiPlugin extends Plugin {
         }
 
         doAction.setAccessible(true);
-        doAction.invoke(null, var0, var1, var2, var3, var4, var5, var6, var7, var8,var9, ObfuscatedNames.doActionGarbageValue);
+        doAction.invoke(null, var0, var1, var2, var3, var4, var5, var6, var7, var8, var9, -886112733);
         doAction.setAccessible(false);
-    }
-
-
-    // BACKUP FOR OTHER PLUGINS I HAVE NOT UDPDATED/CBA
-    // REMOVE LATER
-    @SneakyThrows
-    public static void invoke(int var0, int var1, int var2, int var3, int var4, String var6, String var7, int var8,
-                              int var9) {
-        invoke(var0, var1, var2, var3, var4, -1, var6, var7, var8, var9);
     }
 
     @Deprecated

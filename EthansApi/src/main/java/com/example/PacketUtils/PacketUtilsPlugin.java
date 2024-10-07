@@ -50,7 +50,7 @@ public class PacketUtilsPlugin extends Plugin {
     static Client staticClient;
     public static Method addNodeMethod;
     public static boolean usingClientAddNode = false;
-    public static final int CLIENT_REV = 225;
+    public static final int CLIENT_REV = 226;
     private static String loadedConfigName = "";
     @Inject
     private PluginManager pluginManager;
@@ -186,16 +186,13 @@ public class PacketUtilsPlugin extends Plugin {
             log.info("addNodeMethod: " + addNodeMethod);
             return;
         }
-        String doActionClassName = "qt";
-        String doActionMethodName = "mo";
-        Field classes = ClassLoader.class.getDeclaredField("classes");
-        classes.setAccessible(true);
-        ClassLoader classLoader = client.getClass().getClassLoader();
+        String doActionClassName = ObfuscatedNames.doActionClassName;
+        String doActionMethodName = ObfuscatedNames.doActionMethodName;
+        System.out.print("finished");
         final String doActionFinalClassName = doActionClassName;
         final String doActionFinalMethodName = doActionMethodName;
         System.out.println(doActionFinalClassName);
         System.out.println(doActionFinalMethodName);
-        classes.setAccessible(false);
         URL rlConfigURL = new URL("https://static.runelite.net/jav_config.ws");
         if (!codeSource.toFile().isDirectory()) {
             Files.createDirectory(codeSource);

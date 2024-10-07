@@ -44,7 +44,7 @@ import static com.ozplugins.AutoThiever.AutoThieverState.*;
 @PluginDependency(EthanApiPlugin.class)
 @PluginDependency(PacketUtilsPlugin.class)
 @PluginDescriptor(
-        name = "<html><font color=\"#0394FC\">[OZ]</font> Auto Thiever</font></html>",
+        name = "<html><font color=\"#0394FC\">[MB]</font> Auto Thiever</font></html>",
         enabledByDefault = false,
         description = "Steals shit from stuff for you..",
         tags = {"Oz"}
